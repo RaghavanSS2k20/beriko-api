@@ -1,3 +1,7 @@
 env/
 venv/
 
+.env
+
+test.html
+socket_client.py
