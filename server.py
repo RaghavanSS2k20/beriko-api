@@ -7,7 +7,7 @@ from flask_socketio import SocketIO, emit, join_room
 
 from entities.user.user_routes import user_bp
 from entities.user.user_service import *
-from agent.service import *
+from agent.conversational.service import *
 
 
 load_dotenv()
@@ -55,8 +55,9 @@ def handle_send_message(data):
     # Send back user message to client instantly
     emit("new_message", {"content": content, "type": "user"}, room=user_id)
     print("emitted user message")
-
-    agent_text = generate_agent_response(content, user_id)
+    print(user_id)
+    agent_text = generate_conversation_reply(content, user_id)
+    print("AGEBNT TEXT : ", agent_text)
     res = add_chat_to_user(user_id, "agent",agent_text)
     emit("new_message", {"content": agent_text, "type": "agent"}, room=user_id)
     print("emitted agent reply")

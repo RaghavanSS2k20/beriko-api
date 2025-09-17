@@ -10,7 +10,7 @@ class Chat(EmbeddedDocument):
      def to_json(self):
         return {
             "sender": self.sender,
-            "message": self.content,
+            "content": self.content,
             "timestamp": self.timestamp  # already float epoch
         }
 

@@ -1,5 +1,6 @@
-from flask import Blueprint, request
-from .user_service import *
+from flask import Blueprint, request, jsonify
+from .user_service import create_user, get_all_users, add_chat_to_user, get_chats
+from utils.response import send_response
 
 user_bp = Blueprint("user", __name__, url_prefix="/user")
 
@@ -9,17 +10,18 @@ def create_user_route():
     data = request.get_json()
     user_id = data.get("user_id")
     name = data.get("name")
-    return create_user(user_id,name)
+    res = create_user(user_id, name)
+    if res["success"]:
+        return send_response(data=res["data"], message="User created successfully")
+    return send_response(message=res["error"], status="error", code=400)
 
 # --- Get all users ---
 @user_bp.route("/", methods=["GET"])
 def get_all_users_route():
-    return get_all_users()
-
-# # --- Get single user by ID ---
-# @user_bp.route("/<user_id>", methods=["GET"])
-# def get_user_route(user_id):
-#     return get_user(user_id)
+    res = get_all_users()
+    if res["success"]:
+        return send_response(data=res["data"], message="Users fetched successfully")
+    return send_response(message=res["error"], status="error", code=500)
 
 # --- Add a chat to a user ---
 @user_bp.route("/<user_id>/chats", methods=["POST"])
@@ -27,9 +29,15 @@ def add_chat_route(user_id):
     data = request.get_json()
     sender = data.get("sender")
     message = data.get("message")
-    return add_chat_to_user(user_id, sender, message)
+    res = add_chat_to_user(user_id, sender, message)
+    if res["success"]:
+        return send_response(data=res["data"], message="Chat added successfully")
+    return send_response(message=res["error"], status="error", code=400)
 
 # --- Get all chats for a user ---
 @user_bp.route("/<user_id>/chats", methods=["GET"])
 def get_chats_route(user_id):
-    return get_chats(user_id)
+    res = get_chats(user_id)
+    if res["success"]:
+        return send_response(data=res["data"], message="Chats fetched successfully")
+    return send_response(message=res["error"], status="error", code=404)

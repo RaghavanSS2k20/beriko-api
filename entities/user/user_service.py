@@ -1,88 +1,45 @@
-from utils.response import send_response
 from .user_model import User
-from ..chat.chat_service import *
+from ..chat.chat_service import create_chat
 from mongoengine import DoesNotExist
 
-def create_user(username: str, name:str = ""):
+def create_user(username: str, name: str = "") -> dict:
     try:
         if User.objects(user_id=username).first():
-            return send_response(message="Username already exists", status=False, code=400)
-
+            return {"success": False, "error": "Username already exists"}
         user = User(user_id=username, name=name)
         user.save()
-        return send_response(data=user.to_json(), message="User created successfully", status=True, code=200)
+        return {"success": True, "data": user.to_json()}
     except Exception as e:
-        return send_response(message=f"Error creating user: {str(e)}", status=False, code=500)
+        return {"success": False, "error": f"Error creating user: {str(e)}"}
 
-def add_chat_to_user(user_id: str, sender: str, message: str):
+def add_chat_to_user(user_id: str, sender: str, message: str) -> dict:
     try:
-        print("✅ Calling Save chat", sender,message)
         user = User.objects.get(user_id=user_id)
-        print("✅ USER GOT", user)
-        # Create chat via ChatService
         chat = create_chat(sender, message)
-        print("✅ Chat instance", chat.to_json())
-        if not isinstance(chat, dict):  # ensure it’s not an error response
-            user.chats.append(chat)
-            user.save()
-            print("✅ Chat saved in User : ", user)
-            return send_response(
-                data=chat.to_json(),
-                message="Chat added successfully",
-                status=True,
-                code=200
-            )
-        else:
-            return chat  # error from chat_service
+        if isinstance(chat, dict) and chat.get("success") is False:
+            return chat  # propagate error from chat_service
+        user.chats.append(chat)
+        user.save()
+        return {"success": True, "data": chat.to_json()}
     except DoesNotExist:
-        return send_response(
-            message="User not found",
-            status=False,
-            code=404
-        )
+        return {"success": False, "error": "User not found"}
     except Exception as e:
-        return send_response(
-            message=f"Error adding chat to user: {str(e)}",
-            status=False,
-            code=500
-        )
+        return {"success": False, "error": f"Error adding chat: {str(e)}"}
 
-def get_chats(user_id: str):
+def get_chats(user_id: str) -> dict:
     try:
-        user = User.objects.get(id=user_id)
+        print("ℹ Fetching User : ", user_id)
+        user = User.objects.get(user_id=user_id)
         chats = [chat.to_json() for chat in user.chats]
-        return send_response(
-            data=chats,
-            message="Chats fetched successfully",
-            status=True,
-            code=200
-        )
+        return {"success": True, "data": chats}
     except DoesNotExist:
-        return send_response(
-            message="User not found",
-            status=False,
-            code=404
-        )
+        return {"success": False, "error": "User not found"}
     except Exception as e:
-        return send_response(
-            message=f"Error fetching chats: {str(e)}",
-            status=False,
-            code=500
-        )
+        return {"success": False, "error": f"Error fetching chats: {str(e)}"}
 
-def get_all_users():
+def get_all_users() -> dict:
     try:
-        users = User.objects()  # fetch all users
-        data = [user.to_json() for user in users]
-        return send_response(
-            data=data,
-            message="Users fetched successfully",
-            status=True,
-            code=200
-        )
+        users = User.objects()
+        return {"success": True, "data": [u.to_json() for u in users]}
     except Exception as e:
-        return send_response(
-            message=f"Error fetching users: {str(e)}",
-            status=False,
-            code=500
-        )
+        return {"success": False, "error": f"Error fetching users: {str(e)}"}
