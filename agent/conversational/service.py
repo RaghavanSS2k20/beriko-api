@@ -22,16 +22,24 @@ def format_history(chats: list) -> list:
             history.append({"role": "assistant", "content": c["content"]})
     return history
 
-def generate_conversation_reply(content,user_id):
-    print(content)
+def generate_conversation_reply(content, user_id):
+    print("User input:", content)
+    
     chats = get_chats(user_id)
     
-    history = format_history(chats["data"])
-    print(history)
+    if chats.get("success"):
+        history = format_history(chats["data"])
+    else:
+        print(f"⚠ Error fetching chats for user {user_id}: {chats.get('error')}")
+        history = []
+
+    print("Chat history:", history)
+    
     messages = history + [{"role": "user", "content": content}]
     res = llm.invoke(messages)
     reply = res.content
-    print("RES HERE : ",res.content)
-    # asyncio.create_task(handle_engine_call(user_id, content))
+    print("LLM reply:", reply)
+    
     executor.submit(handle_engine_call, user_id, content)
+    print("hii")
     return reply

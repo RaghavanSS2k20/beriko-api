@@ -10,14 +10,20 @@ def generate_weigths(content):
     try:
         res = chain.invoke({"prompt_text": prompt(content)})
         print("✅ RES HERE:", res)
-        return res.json()
+
+        weights = res.json()  # assuming parser produces JSON
+        if isinstance(weights, str):
+            # try to convert string to dict
+            import json
+            weights = json.loads(weights)
+        return weights
     except Exception as e:
         print("❌ ERROR:", e)
 
 
 def handle_engine_call(user, content):
     weights = generate_weigths(content)
-    print(weights)
+    print(weights, type(weights))
     try:
         # Example: calling your Engine API
         response = requests.put(
