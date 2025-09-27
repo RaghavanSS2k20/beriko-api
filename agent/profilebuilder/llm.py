@@ -11,9 +11,10 @@ class ProfileUpdate(BaseModel):
     int: dict = Field(default_factory=dict, description="Interests with scores 0–1")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
+    model="gemini-2.0-flash",
     temperature=0,
-    google_api_key=GEMINI_API_KEY
+    google_api_key=GEMINI_API_KEY,
+    max_retries=0
 )
 
 parser = PydanticOutputParser(pydantic_object=ProfileUpdate)
