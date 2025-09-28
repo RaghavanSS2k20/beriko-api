@@ -43,7 +43,7 @@ def add_chat_route(user_id):
 def get_chats_route(user_id):
     try:
         # Check query param
-        last_four = request.args.get("lastFour", "false").lower() == "true"
+        last_four = request.args.get("  ", "false").lower() == "true"
 
         if last_four:
             res = get_last_chats_text(user_id)
