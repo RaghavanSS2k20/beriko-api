@@ -29,17 +29,22 @@ def generate_conversation_reply(content, user_id):
     
     if chats.get("success"):
         history = format_history(chats["data"])
+        print(history)
+        sorted_chats = history[::-1]
+        last_pairs_chats = sorted_chats[:4]
     else:
         print(f"⚠ Error fetching chats for user {user_id}: {chats.get('error')}")
         history = []
+        last_pairs_chats = []
 
     print("Chat history:", history)
+    print("Last 2 pairs (for engine):", last_pairs_chats)
     
     messages = history + [{"role": "user", "content": content}]
     res = llm.invoke(messages)
     reply = res.content
     print("LLM reply:", reply)
     
-    executor.submit(handle_engine_call, user_id, content)
+    executor.submit(handle_engine_call, user_id, content, last_pairs_chats)
     print("hii")
     return reply

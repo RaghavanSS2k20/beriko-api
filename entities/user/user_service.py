@@ -71,6 +71,36 @@ def get_chats(user_id: str) -> dict:
     except Exception as e:
         return {"success": False, "error": f"Error fetching chats: {str(e)}"}
 
+
+def get_last_chats_text(user_id: str) -> dict:
+    try:
+        print("ℹ Fetching User : ", user_id)
+        user = User.objects.get(user_id=user_id)
+
+        # Convert chats to Python dicts
+        chats = [chat.to_mongo().to_dict() for chat in user.chats]
+
+        # Reverse chronological (latest first)
+        history_reversed = list(reversed(chats))
+        
+        # Exclude latest user query, then take next 4
+        selected = history_reversed[1:5]
+        print(len(selected))
+
+        # Build text format: "You: ... \nAgent: ..."
+        history_text = ""
+        for chat in selected:
+            role = "You" if chat.get("sender") == "user" else "Agent"
+            history_text += f"{role}: {chat.get('content')}\n"
+
+        return {"success": True, "data": history_text.strip()}
+    except DoesNotExist:
+        return {"success": False, "error": "User not found"}
+    except Exception as e:
+        return {"success": False, "error": f"Error fetching chats: {str(e)}"}
+
+
+
 def get_all_users() -> dict:
     try:
         users = User.objects()

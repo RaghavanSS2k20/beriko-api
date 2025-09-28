@@ -3,12 +3,12 @@ from agent.profilebuilder.llm import llm, parser, prompt_template
 import requests
 from environment import ENGINE_URL
 
-def generate_weigths(content):
+def generate_weigths(content, history_weights):
     # return "Hiis"
     print("Generate weights called")
     chain = prompt_template | llm | parser
     try:
-        res = chain.invoke({"prompt_text": prompt(content)})
+        res = chain.invoke({"prompt_text": prompt(content, history_weights)})
         print("✅ RES HERE:", res)
 
         weights = res.json()  # assuming parser produces JSON
@@ -21,8 +21,15 @@ def generate_weigths(content):
         print("❌ ERROR:", e)
 
 
-def handle_engine_call(user, content):
-    weights = generate_weigths(content)
+def handle_engine_call(user, content, history):
+    print("Handle Engine call Called ", history)
+    history_text = ""
+    for chat in history[::-1]:
+        sender_label = "You" if chat["role"] == "user" else "Agent"
+        history_text += f"{sender_label}: {chat['content']}\n"
+        print("CHATTTSTSTS")
+    print("HISTORY HERE : ", history_text)
+    weights = generate_weigths(content, history_text)
     print(weights, type(weights))
     try:
         # Example: calling your Engine API
