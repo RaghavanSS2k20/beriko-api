@@ -6,5 +6,3 @@ venv/
 test.html
 socket_client.py
 
-agent/conversational/prompt.py
-agent/profilebuilder/prompt.py
