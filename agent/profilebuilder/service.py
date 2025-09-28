@@ -5,7 +5,7 @@ from environment import ENGINE_URL
 
 def generate_weigths(content, history_weights):
     # return "Hiis"
-    print("Generate weights called")
+    print("Generate weights called : ", content, history_weights)
     chain = prompt_template | llm | parser
     try:
         res = chain.invoke({"prompt_text": prompt(content, history_weights)})

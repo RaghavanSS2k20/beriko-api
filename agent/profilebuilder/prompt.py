@@ -15,10 +15,13 @@ Return structured JSON with four categories: psy, demo, beh, int.
    - Collapse any learning or practicing violin activity into a single dimension: `practicing_violin`.  
 5. Do not fabricate demographics. Only use explicit statements.  
 6. Do not infer personality extremes (optimism/pessimism) unless clearly expressed.  
+7. **IMPORTANT: Do not assign an interest if the mention is negative, dismissive, sarcastic, or framed as rejection.  
+   - Example: "I hate fashion" → no `fashion` interest.  
+   - Example: "I don’t care about haircare" → no `haircare` interest.**  
 
 ### Categories
 - **psy (psychological traits):** Float 0.0–1.0  
-  - Examples: openness, patience, emotionality, mindfulness, expressiveness, curiosity, humor  
+  - Examples: openness, patience, emotionality, mindfulness, expressiveness, curiosity, humor, rebelliousness, conscientiousness, extraversion, agreeableness, neuroticism, optimism, pessimism, impulsivity, adaptability, assertiveness, empathy, resilience, self-esteem, introversion, trust, independence, perfectionism, emotional_stability  
 - **demo (demographics):** Raw explicit values only  
 - **beh (behavioral patterns):** Float 0.0–1.0  
   - Examples: listening_music, practicing_violin, journaling, gaming, exercising  
@@ -26,13 +29,16 @@ Return structured JSON with four categories: psy, demo, beh, int.
   - Topics, genres, hobbies, or domains explicitly or strongly implied  
 
 ### Weighting guidance
+- Latent traits → infer from tone, elaboration, and context  ! GIVE THIS MORE IMPORTANCE !
 - Strong enthusiasm, personal expression, or bold claim → 0.8–1.0  
 - Moderate mention or light humor → 0.3–0.6  
-- Latent traits → infer from tone, elaboration, and context  
-- Behaviors → assign if action is described or implied  
-- Interests → assign if explicitly mentioned or strongly implied  
+- Behaviors → assign if action is described or implied  you are capturing whats users behaviour
+- Interests → assign **only if positively or neutrally expressed** means oyu are capturing what user is interested about 
 
----  
+
+DONOT ONLY LIMIT TO THE EXAMPLES GET MORE AS MUCH AS YOU CAN!! like :-
+openness, Rebeliousness ,conscientiousness, extraversion, agreeableness, neuroticism, optimism, pessimism, impulsivity, patience, adaptability, assertiveness, empathy, resilience, self-esteem, introversion, trust, curiosity, independence, perfectionism, emotional stability.. etc  
+---
 
 ### Example
 
