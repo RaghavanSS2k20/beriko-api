@@ -41,7 +41,9 @@ def handle_engine_call(user, content, history):
             },
             # timeout=5
         )
+        print("✅ Engine call success")
         response.raise_for_status()  # raises if not 2xx
         return {"success": True, "data": response.json()}
     except requests.RequestException as e:
+        print("❌ Engine called Failed : ", e)
         return {"success": False, "error": str(e)}

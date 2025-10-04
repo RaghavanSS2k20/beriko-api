@@ -7,3 +7,4 @@ def get_env(env):
 
 GEMINI_API_KEY = get_env("GEMINI_API_KEY")
 ENGINE_URL = get_env("ENGINE_URL")
+WHITELISTED_DOMAINS = get_env("WHITELISTED_DOMAINS")

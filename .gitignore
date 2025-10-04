@@ -3,6 +3,6 @@ venv/
 
 .env
 
-test.html
+*.html
 socket_client.py
 
