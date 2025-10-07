@@ -4,5 +4,6 @@ venv/
 .env
 
 *.html
+*.pyc
 socket_client.py
 

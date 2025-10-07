@@ -1,8 +1,10 @@
 from mongoengine import DoesNotExist
 from .model import Conversation, Message  # assuming you defined them in models.py
-import datetime
+from datetime import datetime, timezone
 
 from ..user.user_service import *
+
+import json
 
 # ---------------------------
 # Get all conversations for a user
@@ -28,7 +30,7 @@ def get_conversations_for_user(user_id: str):
                 "conversation_id": str(convo.id),
                 "participants": participants_data,   # trimmed user objects
                 "last_message": convo.last_message,
-                "updated_at": convo.updated_at.isoformat()
+                "updated_at": convo.updated_at
             })
 
         return {"success": True, "data": data}
@@ -44,14 +46,31 @@ def get_messages_for_conversation(conversation_id: str):
     print("Get messages for a conversation")
     try:
         convo = Conversation.objects.get(id=conversation_id)
+        print("Convo here : ",convo)
+        
         data = [{
-            "sender_id": msg.sender_id,
-            "text": msg.text,
-            "timestamp": msg.timestamp.isoformat(),
-            "status": msg.status
+            "sender": msg.sender,
+            "content": msg.content,
+            "timestamp": msg.timestamp.isoformat() + "Z" if isinstance(msg.timestamp, datetime) else str(msg.timestamp),
+            # "status": msg.status
         } for msg in convo.messages]
+        participants_data = []
+        for pid in convo.participants:
+                user_result = get_user(pid)
+                if user_result["success"]:
+                    user_data = user_result["data"]
+                    # Remove the 'chats' field if it exists
+                    user_data.pop("chats", None)
+                    participants_data.append(user_data)
+                else:
+                    participants_data.append({"user_id": pid, "error": "User not found"})
 
-        return {"success": True, "data": data}
+        result = {
+            "messages":data,
+            "participants": participants_data
+        }
+
+        return {"success": True, "data": result}
     except DoesNotExist:
         return {"success": False, "error": "Conversation not found"}
     except Exception as e:
@@ -86,6 +105,7 @@ def add_message_to_conversation(conversation_id: str = None, participants: list 
 
     # Sort participants for consistency
     if participants:
+        print(participants)
         participants = sorted(participants)
 
     # 1️⃣ Try fetching by conversation_id
@@ -119,7 +139,7 @@ def add_message_to_conversation(conversation_id: str = None, participants: list 
                 participants=participants,
                 messages=[],
                 last_message="",
-                updated_at=datetime.timezone.utc
+                # updated_at=datetime.utcnow()
             )
             convo.save()
             print(f"✅ Created new conversation with participants {participants}")
@@ -129,20 +149,24 @@ def add_message_to_conversation(conversation_id: str = None, participants: list 
 
     # 4️⃣ Add the message
     try:
-        msg = Message(sender=sender_id, content=text, timestamp=datetime.datetime.utcnow())
+        msg = Message(sender=sender_id, content=text)
         convo.messages.append(msg)
         convo.last_message = text
-        convo.updated_at = datetime.datetime.utcnow()
+        convo.updated_at = datetime.utcnow()
         convo.save()
         print(f"💬 Added message from {sender_id} to conversation {convo.id}")
-
+        timestamp = ""
+        if isinstance(msg.timestamp, datetime):
+            timestamp = msg.timestamp.isoformat()
+        else:
+            timestamp = str(msg.timestamp)  # fallback
         return {
             "success": True,
             "data": {
                 "conversation_id": str(convo.id),
                 "sender": sender_id,
                 "content": text,
-                "timestamp": msg.timestamp.isoformat()
+                "timestamp":timestamp
             }
         }
     except Exception as e:
@@ -158,7 +182,7 @@ def create_conversation(participants: list):
             participants=participants,
             messages=[],
             last_message="",
-            updated_at=datetime.datetime.utcnow()
+            # updated_at=datetime.utcnow()
         )
         convo.save()
         return {"success": True, "data": {"conversation_id": str(convo.id)}}
