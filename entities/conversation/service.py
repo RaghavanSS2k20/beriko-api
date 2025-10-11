@@ -2,21 +2,60 @@ from mongoengine import DoesNotExist
 from .model import Conversation, Message  # assuming you defined them in models.py
 from datetime import datetime, timezone
 
-from ..user.user_service import *
+from ..user.user_service import get_user
 
 import json
+from slugify import slugify
 
 # ---------------------------
 # Get all conversations for a user
 # ---------------------------
+# def get_conversations_for_user(user_id: str):
+#     try:
+#         conversations = Conversation.objects(participants=user_id).order_by("-updated_at")
+#         data = []
+
+#         for convo in conversations:
+#             participants_data = []
+#             for pid in convo.participants:
+#                 user_result = get_user(pid)
+#                 if user_result["success"]:
+#                     user_data = user_result["data"]
+#                     # Remove the 'chats' field if it exists
+#                     user_data.pop("chats", None)
+#                     participants_data.append(user_data)
+#                 else:
+#                     participants_data.append({"user_id": pid, "error": "User not found"})
+
+#             data.append({
+#                 "conversation_id": str(convo.id),
+#                 "participants": participants_data,   # trimmed user objects
+#                 "last_message": convo.last_message,
+#                 "updated_at": convo.updated_at
+#             })
+
+#         return {"success": True, "data": data}
+
+#     except Exception as e:
+#         print(e)
+#         return {"success": False, "error": str(e)}
 def get_conversations_for_user(user_id: str):
     try:
-        conversations = Conversation.objects(participants=user_id).order_by("-updated_at")
         data = []
 
+        # Fetch all conversations (we'll filter manually since participants is a slug string)
+        conversations = Conversation.objects().order_by("-updated_at")
+
         for convo in conversations:
+            # Convert slug back to list
+            participants_ids = convo.participants.split("_")
+
+            # Skip if user_id is not in this conversation
+            if user_id not in participants_ids:
+                continue
+
             participants_data = []
-            for pid in convo.participants:
+            for pid in participants_ids:
                 user_result = get_user(pid)
                 if user_result["success"]:
                     user_data = user_result["data"]
@@ -28,7 +67,7 @@ def get_conversations_for_user(user_id: str):
 
             data.append({
                 "conversation_id": str(convo.id),
-                "participants": participants_data,   # trimmed user objects
+                "participants": participants_data,
                 "last_message": convo.last_message,
                 "updated_at": convo.updated_at
             })
@@ -55,7 +94,7 @@ def get_messages_for_conversation(conversation_id: str):
             # "status": msg.status
         } for msg in convo.messages]
         participants_data = []
-        for pid in convo.participants:
+        for pid in convo.participants.split("_"):
                 user_result = get_user(pid)
                 if user_result["success"]:
                     user_data = user_result["data"]
@@ -84,67 +123,53 @@ def get_messages_for_conversation(conversation_id: str):
 def add_message_to_conversation(conversation_id: str = None, participants: list = None, sender_id: str = None, text: str = None):
     """
     Add a message to a conversation. If conversation_id is None or doesn't exist, create a new conversation.
-    Ensures that duplicate conversations are not created for the same participants (sorted).
-    
+    Ensures that duplicate conversations are not created for the same participants (sorted + slugified).
+
     Args:
         conversation_id (str): Optional. If provided, adds message to existing convo.
         participants (list): Required if creating a new conversation. List of user_ids.
         sender_id (str): The sender's user_id.
         text (str): Message content.
+
     Returns:
         dict: {"success": True/False, "data"/"error"}
     """
-
-    print("HIIIII")
-
     if not sender_id or not text:
-        print("yess: sender_id or text missing")
         return {"success": False, "error": "sender_id and text are required"}
 
     convo = None
-
-    # Sort participants for consistency
-    if participants:
-        print(participants)
-        participants = sorted(participants)
 
     # 1️⃣ Try fetching by conversation_id
     if conversation_id:
         try:
             convo = Conversation.objects.get(id=conversation_id)
         except DoesNotExist:
-            print(f"⚠️ Conversation with id {conversation_id} does not exist")
             convo = None
         except Exception as e:
-            print(f"❌ Error fetching conversation by id: {str(e)}")
             return {"success": False, "error": str(e)}
 
     # 2️⃣ If no convo yet, try finding by participants
-    if convo is None and participants:
-        try:
-            convo = Conversation.objects(participants=participants).first()
-            if convo is None:
-                print(f"⚠️ No conversation found with participants {participants}")
-        except Exception as e:
-            print(f"❌ Error fetching conversation by participants: {str(e)}")
-            return {"success": False, "error": str(e)}
-
-    # 3️⃣ If still no convo, create new
     if convo is None:
         if not participants:
-            print("⚠️ Participants required to create conversation")
             return {"success": False, "error": "participants required to create conversation"}
+
+        # Generate slug using same logic as model.clean()
+        participants_slug = slugify("_".join(sorted(participants)), separator="_")
+        try:
+            convo = Conversation.objects(participants=participants_slug).first()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # 3️⃣ If still no convo, create new (model handles slug automatically)
+    if convo is None:
         try:
             convo = Conversation(
-                participants=participants,
+                participants=participants,  # list; clean() will slugify
                 messages=[],
                 last_message="",
-                # updated_at=datetime.utcnow()
             )
             convo.save()
-            print(f"✅ Created new conversation with participants {participants}")
         except Exception as e:
-            print(f"❌ Error creating new conversation: {str(e)}")
             return {"success": False, "error": str(e)}
 
     # 4️⃣ Add the message
@@ -154,41 +179,56 @@ def add_message_to_conversation(conversation_id: str = None, participants: list 
         convo.last_message = text
         convo.updated_at = datetime.utcnow()
         convo.save()
-        print(f"💬 Added message from {sender_id} to conversation {convo.id}")
-        timestamp = ""
-        if isinstance(msg.timestamp, datetime):
-            timestamp = msg.timestamp.isoformat()
-        else:
-            timestamp = str(msg.timestamp)  # fallback
+
+        timestamp = msg.timestamp.isoformat() if isinstance(msg.timestamp, datetime) else str(msg.timestamp)
+
         return {
             "success": True,
             "data": {
                 "conversation_id": str(convo.id),
                 "sender": sender_id,
                 "content": text,
-                "timestamp":timestamp
+                "timestamp": timestamp
             }
         }
     except Exception as e:
-        print(f"❌ Error adding message: {str(e)}")
         return {"success": False, "error": str(e)}
-
 # ---------------------------
 # Create a new conversation
 # ---------------------------
+
 def create_conversation(participants: list):
+    """
+    Creates a new conversation if one doesn't exist for the given participants.
+    Returns existing conversation if already present.
+    Participants list is sorted and slugified to ensure uniqueness.
+    """
     try:
+        if not participants or len(participants) < 2:
+            return {"success": False, "error": "At least two participants are required"}
+
+        # Sort and slugify participants
+        participants_slug = slugify("_".join(sorted(participants)), separator="_")
+        print("Participants slug:", participants_slug)
+
+        # Check if conversation already exists
+        convo = Conversation.objects(participants=participants_slug).first()
+        if convo:
+            return {"success": True, "data": json.loads(convo.to_json())}
+
+        # Create new conversation (model will handle slug if list passed)
         convo = Conversation(
-            participants=participants,
+            participants=participants,  # pass list; model handles slug automatically
             messages=[],
-            last_message="",
-            # updated_at=datetime.utcnow()
+            last_message="Talk to know them!",
         )
         convo.save()
-        return {"success": True, "data": {"conversation_id": str(convo.id)}}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
 
+        return {"success": True, "data": convo.to_json()}
+
+    except Exception as e:
+        print("Error creating conversation:", e)
+        return {"success": False, "error": str(e)}
 
 def delete_conversation(conversation_id: str):
     try:

@@ -1,17 +1,78 @@
+from pydantic import ValidationError
 from .user_model import User
 from ..chat.chat_service import create_chat
+
+# from ..conversation.service import get_conversations_for_user
+from agent.common.service import generate_user_friendly_profile
 from mongoengine import DoesNotExist
 from environment import ENGINE_URL
 import requests
 
-def create_user(username: str, name: str = "") -> dict:
+def update_user(user_id, update_data):
+    """
+    update_data: dict of fields to update, e.g.
+    {
+        "name": "Rex",
+        "gender": "male",
+        "age": 25,
+        "city": "Bangalore",
+        "state": "Karnataka",
+        "country_code": "IN",
+        "latitude": 12.97,
+        "longitude": 77.59
+    }
+    """
+    print(update_data)
+    try:
+        user = User.objects.get(user_id=user_id)
+    except DoesNotExist:
+        return {"success": False, "error": "User not found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+    # Update allowed fields only
+    allowed_fields = [
+        "name", "gender", "age", "city", "state", "country_code", "latitude", "longitude", "preferred_gender"
+    ]
+    for field in allowed_fields:
+        if field in update_data:
+            setattr(user, field, update_data[field])
+
+    try:
+        user.save()
+    except ValidationError as ve:
+        return {"success": False, "error": str(ve)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+    # Return updated data
+    return {"success": True, "data": user.to_json()}
+
+def create_user(username: str, name: str = "", gender: str = None,
+    age: int = None,
+    city: str = None,
+    state: str = None,
+    country_code: str = None,
+    latitude: float = None,
+    longitude: float = None,) -> dict:
     try:
         # Check if user already exists
         if User.objects(user_id=username).first():
             return {"success": False, "error": "Username already exists"}
 
         # Create user in local DB
-        user = User(user_id=username, name=name)
+        user =  user = User(
+            user_id=username,
+            name=name,
+            gender=gender,
+            age=age,
+            city=city,
+            state=state,
+            country_code=country_code,
+            latitude=latitude,
+            longitude=longitude,
+            chats=[],  # initialize empty chat list
+        )
         user.save()
 
         # Call Engine to create persona
@@ -45,24 +106,26 @@ def create_user(username: str, name: str = "") -> dict:
     except Exception as e:
         return {"success": False, "error": f"Error creating user: {str(e)}"}
 
-def get_user(user_id : str)->dict:
-    if user_id == "":
-        return {"success": False, "error": "Bad request value"}
-    try:
-       user =  User.objects(user_id=user_id).first()
-       if not user:
-           return {"success": False, "error": "user not found"}
-       data = user.to_json()
-       return {
-           "success":True, "data":data
-       }
-    except Exception as e:
-        print(e)
-        return {
-           "success":False, "error":e
-        }
+def get_user(user_id: str, with_chat: bool = True) -> dict:
+    if not user_id:
+        return {"success": False, "error": "Bad request value, user_id required"}
 
-           
+    try:
+        # Projection: exclude chats if not requested
+        projection = {} if with_chat else {"chats": 0}
+
+        user = User.objects(user_id=user_id).only(*projection.keys()) if with_chat else User.objects(user_id=user_id).exclude("chats")
+        user = user.first()
+
+        if not user:
+            return {"success": False, "error": "user not found"}
+
+        data = user.to_json()
+        return {"success": True, "data": data}
+
+    except Exception as e:
+        print("Error in get_user:", e)
+        return {"success": False, "error": str(e)}     
 
 
 def add_chat_to_user(user_id: str, sender: str, message: str) -> dict:
@@ -141,7 +204,6 @@ def get_all_users() -> dict:
 #             "success" : False,
 #             "error" : f"Error fetching matches: {str(e)}"
 #         }
-    
 def get_matches_for_user(user_id: str) -> dict:
     try:
         # Get match suggestions from the engine
@@ -153,22 +215,108 @@ def get_matches_for_user(user_id: str) -> dict:
         print("Error fetching matches from engine:", e)
         return {"success": False, "error": f"Error fetching matches: {str(e)}"}
 
-    # Try fetching User objects separately
+    # Fetch User objects from MongoDB
     try:
-        user_ids = [match["user_id"] for match in matches if "user_id" in match]
-        users = User.objects.filter(user_id__in=user_ids)  # Django ORM example
-        user_map = {user.user_id: user.to_dict() for user in users}  # assuming to_dict() exists
+        user_ids = [match.get("user_id") for match in matches.get("data", []) if match.get("user_id")]
+        users = User.objects(user_id__in=user_ids)  # MongoEngine syntax
+        user_map = {}
+        for user in users:
+            
+            u_dict = user.to_mongo().to_dict()
+            
+            u_dict.pop("_id", None)       # remove MongoEngine _id
+            u_dict.pop("chats", None)  
+            print(u_dict)   # remove chats field
+            user_map[user.user_id] = u_dict
     except Exception as e:
         print("Error fetching User objects:", e)
-        user_map = {}  # fallback to empty dict
+        user_map = {}
 
     # Combine match info with full user data
-    match_list = matches.get("data", [])
     full_matches = []
-    for match in match_list:
+    for match in matches.get("data", []):
         uid = match.get("user_id")
-        user_data = user_map.get(uid)
+        user_data = user_map.get(uid)  # None if user not found
         combined = {**match, "user_data": user_data}
         full_matches.append(combined)
 
     return {"success": True, "data": full_matches}
+
+def get_user_profile(user_id):
+    from ..conversation.service import get_conversations_for_user
+    result = {}
+    response = requests.get(f"{ENGINE_URL}//persona/insights/{user_id}")
+    response.raise_for_status()
+    response_json = response.json()
+    print(response_json)
+    persona = response_json.get("data").get("persona")
+    if(not persona):
+        return {"success": False, "error": f"not found persona"}
+    charecter_persona = persona.get("charecter_persona")
+    charecter_persona_response = generate_user_friendly_profile(charecter_persona)
+    if charecter_persona_response["success"]:
+        result["persona"] = charecter_persona_response["data"]
+    # clean_interests = []
+    interests = persona.get("intrests", [])
+    clean_interests = [
+        i.get("name", "").replace("_", " ").replace("-", " ").title()
+        for i in interests if "name" in i
+    ]
+    result["interests"] = clean_interests
+    result["matches_count"] = response_json.get("data").get("matches_count")
+    conversations_res = get_conversations_for_user(user_id)
+    if conversations_res["success"]:
+        result["conversation_count"] = len(conversations_res["data"])
+    user = get_user(user_id,with_chat=False)
+    if user["success"]:
+        result["user"] = user["data"]
+
+    return {"success": True, "data": result}        
+
+
+    
+def get_described_persona(user_id: str) -> dict:
+    """
+    Fetch persona insights from ENGINE and generate a user-friendly description.
+
+    Returns:
+        dict: {
+            "success": bool,
+            "data": {...} if success,
+            "error": str if failed
+        }
+    """
+    try:
+        # ✅ Validate input
+        if not user_id:
+            return {"success": False, "error": "user_id is required"}
+
+        # ✅ Make request to Engine
+        response = requests.get(f"{ENGINE_URL}/persona/insights/{user_id}", timeout=10)
+        response.raise_for_status()
+        response_json = response.json()
+
+        persona = response_json.get("data", {}).get("persona")
+        if not persona:
+            return {"success": False, "error": "Persona not found in response"}
+
+        # ✅ Extract character persona
+        charecter_persona = persona.get("charecter_persona")
+        if not charecter_persona:
+            return {"success": False, "error": "Character persona data missing"}
+
+        # ✅ Generate user-friendly summary
+        charecter_persona_response = generate_user_friendly_profile(charecter_persona)
+        if charecter_persona_response.get("success"):
+            result = {"persona": charecter_persona_response["data"]}
+            return {"success": True, "data": result}
+        else:
+            return {"success": False, "error": charecter_persona_response.get("error", "Failed to generate profile")}
+
+    except requests.exceptions.RequestException as e:
+        # Network or response error
+        return {"success": False, "error": f"Request failed: {str(e)}"}
+
+    except Exception as e:
+        # Catch-all for other unexpected issues
+        return {"success": False, "error": f"Unexpected error: {str(e)}"}

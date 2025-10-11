@@ -1,6 +1,6 @@
 from langchain.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain.schema import HumanMessage
-from llm import llm  # import LLM instance
+from .llm import llm
 
 def generate_user_friendly_profile(persona_text: str) -> dict:
     """
@@ -28,8 +28,9 @@ def generate_user_friendly_profile(persona_text: str) -> dict:
         ])
 
         response = llm([HumanMessage(content=prompt.format(persona_text=persona_text))])
-        profile_description = response[0].content
+        profile_description = response.content
         return {"success": True, "data": profile_description}
 
     except Exception as e:
+        print("LLM CALL FAILED ", e)
         return {"success": False, "error": str(e)}
