@@ -58,7 +58,7 @@ def create_user(username: str, name: str = "", gender: str = None,
     try:
         # Check if user already exists
         if User.objects(user_id=username).first():
-            return {"success": False, "error": "Username already exists"}
+            return {"success": False, "error": "Username already exists" , "status":400}
 
         # Create user in local DB
         user =  user = User(
@@ -118,7 +118,8 @@ def get_user(user_id: str, with_chat: bool = True) -> dict:
         user = user.first()
 
         if not user:
-            return {"success": False, "error": "user not found"}
+            print("user not found")
+            return {"success": False, "error": "user not found", "status":404}
 
         data = user.to_json()
         return {"success": True, "data": data}

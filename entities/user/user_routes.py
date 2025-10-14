@@ -54,7 +54,7 @@ def create_user_route():
     return send_response(
         message=res.get("error", "Unknown error during user creation"),
         status="error",
-        code=500,
+        code=res["status"] or 500,
     )
 
 @user_bp.route("/", methods=["PATCH"])
@@ -109,7 +109,7 @@ def get_user_by_id(user_id):
     res = get_user(user_id, with_chat=with_chat)
     if res["success"]:
         return send_response(data=res["data"], message="Users fetched successfully")
-    return send_response(message=res["error"], status="error", code=500)
+    return send_response(message=res["error"], status="error", code=res["status"] or 500)
 
 
 # --- Add a chat to a user ---
