@@ -15,12 +15,15 @@ def create_user_route():
     user_id = data.get("user_id")
     name = data.get("name")
     gender = data.get("gender")
+    preferred_gender = data.get("preferred_gender")
     age = data.get("age")
     city = data.get("city")
     state = data.get("state")
     country_code = data.get("country_code")
     latitude = data.get("latitude")
     longitude = data.get("longitude")
+
+    print(preferred_gender, gender)
 
     # ✅ Basic validation
     if not user_id or not name:
@@ -38,6 +41,7 @@ def create_user_route():
         age=age,
         city=city,
         state=state,
+        preferred_gender=preferred_gender,
         country_code=country_code,
         latitude=latitude,
         longitude=longitude,
@@ -54,7 +58,7 @@ def create_user_route():
     return send_response(
         message=res.get("error", "Unknown error during user creation"),
         status="error",
-        code=res["status"] or 500,
+        code=res.get("status") or 500,
     )
 
 @user_bp.route("/", methods=["PATCH"])

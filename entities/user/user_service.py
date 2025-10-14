@@ -48,7 +48,7 @@ def update_user(user_id, update_data):
     # Return updated data
     return {"success": True, "data": user.to_json()}
 
-def create_user(username: str, name: str = "", gender: str = None,
+def create_user(username: str, name: str = "", gender: str = None,preferred_gender:str="",
     age: int = None,
     city: str = None,
     state: str = None,
@@ -65,6 +65,7 @@ def create_user(username: str, name: str = "", gender: str = None,
             user_id=username,
             name=name,
             gender=gender,
+            preferred_gender = preferred_gender,
             age=age,
             city=city,
             state=state,
@@ -205,6 +206,44 @@ def get_all_users() -> dict:
 #             "success" : False,
 #             "error" : f"Error fetching matches: {str(e)}"
 #         }
+# def get_matches_for_user(user_id: str) -> dict:
+#     try:
+#         # Get match suggestions from the engine
+#         matches_res = requests.get(f"{ENGINE_URL}/suggestions/{user_id}")
+#         matches_res.raise_for_status()
+#         matches = matches_res.json()
+#         print("Engine matches:", matches)
+#     except Exception as e:
+#         print("Error fetching matches from engine:", e)
+#         return {"success": False, "error": f"Error fetching matches: {str(e)}"}
+
+#     # Fetch User objects from MongoDB
+#     try:
+#         user_ids = [match.get("user_id") for match in matches.get("data", []) if match.get("user_id")]
+#         users = User.objects(user_id__in=user_ids)  # MongoEngine syntax
+#         user_map = {}
+#         for user in users:
+            
+#             u_dict = user.to_mongo().to_dict()
+            
+#             u_dict.pop("_id", None)       # remove MongoEngine _id
+#             u_dict.pop("chats", None)  
+#             print(u_dict)   # remove chats field
+#             user_map[user.user_id] = u_dict
+#     except Exception as e:
+#         print("Error fetching User objects:", e)
+#         user_map = {}
+
+#     # Combine match info with full user data
+#     full_matches = []
+#     for match in matches.get("data", []):
+#         uid = match.get("user_id")
+#         user_data = user_map.get(uid)  # None if user not found
+#         combined = {**match, "user_data": user_data}
+#         full_matches.append(combined)
+
+#     return {"success": True, "data": full_matches}
+
 def get_matches_for_user(user_id: str) -> dict:
     try:
         # Get match suggestions from the engine
@@ -216,28 +255,36 @@ def get_matches_for_user(user_id: str) -> dict:
         print("Error fetching matches from engine:", e)
         return {"success": False, "error": f"Error fetching matches: {str(e)}"}
 
-    # Fetch User objects from MongoDB
     try:
+        # Fetch the requesting user's profile and preferred_gender
+        requesting_user = User.objects(user_id=user_id).first()
+        if not requesting_user:
+            return {"success": False, "error": "Requesting user not found"}
+        preferred_gender = requesting_user.preferred_gender
+        if not preferred_gender :
+           return {"success": False, "error": "Requesting user cnt be matched with anyone"}
+        # Fetch User objects for candidate matches
         user_ids = [match.get("user_id") for match in matches.get("data", []) if match.get("user_id")]
-        users = User.objects(user_id__in=user_ids)  # MongoEngine syntax
+        users = User.objects(user_id__in=user_ids)
         user_map = {}
         for user in users:
-            
             u_dict = user.to_mongo().to_dict()
-            
-            u_dict.pop("_id", None)       # remove MongoEngine _id
-            u_dict.pop("chats", None)  
-            print(u_dict)   # remove chats field
+            u_dict.pop("_id", None)  # remove MongoEngine _id
+            u_dict.pop("chats", None)  # remove chats field
             user_map[user.user_id] = u_dict
     except Exception as e:
         print("Error fetching User objects:", e)
         user_map = {}
 
-    # Combine match info with full user data
     full_matches = []
     for match in matches.get("data", []):
         uid = match.get("user_id")
-        user_data = user_map.get(uid)  # None if user not found
+        user_data = user_map.get(uid)
+        if not user_data:
+            continue
+        # Filter by preferred gender
+        if user_data.get('gender') != preferred_gender:
+            continue
         combined = {**match, "user_data": user_data}
         full_matches.append(combined)
 
