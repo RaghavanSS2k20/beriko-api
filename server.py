@@ -6,6 +6,8 @@ from mongoengine import connect
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 
+from flask import jsonify
+
 from flask import request
 
 from entities.conversation.routes import conversation_bp
@@ -15,7 +17,7 @@ from agent.conversational.service import *
 
 from entities.conversation.service import add_message_to_conversation, get_messages_for_conversation, delete_conversation
 
-from environment import WHITELISTED_DOMAINS
+from environment import WHITELISTED_DOMAINS, ENGINE_URL
 
 whitelist = [domain.strip() for domain in WHITELISTED_DOMAINS.split(",") if domain]
 
@@ -138,6 +140,27 @@ def handle_leave_chat(data):
 
 
 
+@app.route("/health")
+def health_check():
+    try:
+        # ping the engine
+        response = requests.get(ENGINE_URL, timeout=3)
+        
+        if response.status_code == 200:
+            return jsonify({
+                "api_status": "healthy",
+                "engine_status": "healthy"
+            }), 200
+        else:
+            return jsonify({
+                "api_status": "healthy",
+                "engine_status": f"unhealthy ({response.status_code})"
+            }), 500
+    except requests.exceptions.RequestException as e:
+        return jsonify({
+            "api_status": "healthy",
+            "engine_status": f"unreachable ({str(e)})"
+        }), 500
 
 @app.route("/")
 def home():
