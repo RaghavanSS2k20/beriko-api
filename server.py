@@ -144,6 +144,7 @@ def handle_leave_chat(data):
 def health_check():
     try:
         # ping the engine
+        print(ENGINE_URL)
         response = requests.get(ENGINE_URL, timeout=3)
         
         if response.status_code == 200:
