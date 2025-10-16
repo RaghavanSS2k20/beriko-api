@@ -223,8 +223,8 @@ def create_conversation(participants: list):
             last_message="Talk to know them!",
         )
         convo.save()
-
-        return {"success": True, "data": convo.to_json()}
+        data = json.loads(convo.to_json())
+        return {"success": True, "data": data}
 
     except Exception as e:
         print("Error creating conversation:", e)
