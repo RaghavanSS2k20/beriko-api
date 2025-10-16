@@ -145,7 +145,7 @@ def health_check():
     try:
         # ping the engine
         print(ENGINE_URL)
-        response = requests.get(ENGINE_URL, timeout=3)
+        response = requests.get(ENGINE_URL)
         
         if response.status_code == 200:
             return jsonify({
@@ -153,6 +153,7 @@ def health_check():
                 "engine_status": "healthy"
             }), 200
         else:
+            print(response)
             return jsonify({
                 "api_status": "healthy",
                 "engine_status": f"unhealthy ({response.status_code})"
