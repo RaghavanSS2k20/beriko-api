@@ -2,21 +2,27 @@ name: Health Checker (Keep Render Alive)
 
 on:
   schedule:
-    - cron: "*/10 * * * *" # every 10 minutes
+    - cron: "*/7 * * * *" # every 7 minutes
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render Health Endpoint
+      - name: Ping Engine directly
         run: |
-          echo "[$(date)] Pinging Render health route..."
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://beriko-api.onrender.com/health)
+          echo "[$(date)] Pinging Engine..."
+          ENGINE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://beriko-engine.onrender.com/ || true)
+          echo "Engine status: $ENGINE_RESPONSE"
 
-          if [ "$RESPONSE" -eq 200 ]; then
-            echo "✅ Render app is awake (Status: $RESPONSE)"
+      - name: Ping API (which calls Engine)
+        run: |
+          echo "[$(date)] Pinging API health route..."
+          API_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://beriko-api.onrender.com/ || true)
+          echo "API status: $API_RESPONSE"
+
+          if [ "$API_RESPONSE" -eq 200 ]; then
+            echo "✅ API and Engine are both awake!"
           else
-            echo "⚠️ Render app might be sleeping (Status: $RESPONSE)"
-            exit 1
+            echo "⚠️ API or Engine might still be waking (Status: $API_RESPONSE)"
           fi
