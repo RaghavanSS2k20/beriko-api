@@ -109,7 +109,7 @@ def create_user(username: str, name: str = "", gender: str = None,preferred_gend
 
 def get_user(user_id: str, with_chat: bool = True) -> dict:
     if not user_id:
-        return {"success": False, "error": "Bad request value, user_id required"}
+        return {"success": False,"status":400, "error": "Bad request value, user_id required"}
 
     try:
         # Projection: exclude chats if not requested
@@ -120,14 +120,14 @@ def get_user(user_id: str, with_chat: bool = True) -> dict:
 
         if not user:
             print("user not found")
-            return {"success": False, "error": "user not found", "status":404}
+            return {"success": False,"status":404, "error": "user not found", "status":404}
 
         data = user.to_json()
         return {"success": True, "data": data}
 
     except Exception as e:
         print("Error in get_user:", e)
-        return {"success": False, "error": str(e)}     
+        return {"success": False,"status":500, "error": str(e)}     
 
 
 def add_chat_to_user(user_id: str, sender: str, message: str) -> dict:
