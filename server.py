@@ -33,7 +33,7 @@ CORS(app, origins=whitelist, supports_credentials=True)
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME", "Beriko")  # fallback if not set in .env
 
-socketio = SocketIO(app, cors_allowed_origins="*") 
+socketio = SocketIO(app, cors_allowed_origins="*",async_mode='gevent') 
 
 import entities.conversation.sockets
 
