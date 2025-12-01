@@ -34,3 +34,28 @@ def get_conversaton_by_id(conversation_id):
     if(res["success"]):
         return send_response(data=res["data"],message="Conversation fetches for id")
     return send_response(message=res["error"], status="error", code=500)
+
+
+@conversation_bp.get("/between/<user1_id>/<user2_id>")
+def get_conversation_between_users(user1_id, user2_id):   
+    if not user1_id or not user2_id:
+        return send_response(
+        message="Bad request both user id must exist",
+        status="error",
+        code=400
+    )
+
+
+    res = get_conversation_between(user1_id, user2_id)
+
+    if res["success"]:
+        return send_response(
+            data=res["data"],
+            message="Conversation fetched between users"
+        )
+
+    return send_response(
+        message=res.get("error", "Unknown error"),
+        status="error",
+        code=500
+    )

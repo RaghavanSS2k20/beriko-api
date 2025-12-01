@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, FloatField, ListField,IntField, EmbeddedDocument, EmbeddedDocumentField, ReferenceField
+from mongoengine import Document, StringField, FloatField, ListField,IntField, EmbeddedDocument, EmbeddedDocumentField, ReferenceField, BooleanField
 
 from ..chat.chat_model import Chat
 
@@ -19,6 +19,9 @@ class User(Document):
     latitude = FloatField()
     longitude = FloatField()
 
+    open_to_flowers = BooleanField(default=True)
+    is_familiar = BooleanField(default=False)
+
     def to_json(self):
         return {
             "id": str(self.id),
@@ -35,4 +38,5 @@ class User(Document):
                 "lat": self.latitude,
                 "lon": self.longitude,
             },
+            "is_familiar":self.is_familiar
         }

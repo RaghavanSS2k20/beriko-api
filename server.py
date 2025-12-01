@@ -14,6 +14,7 @@ from entities.conversation.routes import conversation_bp
 from entities.user.user_routes import user_bp
 from entities.user.user_service import *
 from agent.conversational.service import *
+from entities.Flower.routes import flower_bp
 
 from entities.conversation.service import add_message_to_conversation, get_messages_for_conversation, delete_conversation
 
@@ -26,14 +27,17 @@ whitelist = [domain.strip() for domain in WHITELISTED_DOMAINS.split(",") if doma
 
 load_dotenv()
 app = Flask(__name__)
+
 app.register_blueprint(user_bp)
 app.register_blueprint(conversation_bp)
+app.register_blueprint(flower_bp)
+
 CORS(app, origins=whitelist, supports_credentials=True)
 
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME", "Beriko")  # fallback if not set in .env
 
-socketio = SocketIO(app, cors_allowed_origins="*",async_mode='gevent') 
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins="*",) 
 
 import entities.conversation.sockets
 
