@@ -8,6 +8,8 @@ from mongoengine import DoesNotExist
 from environment import ENGINE_URL
 import requests
 
+from ..Flower.model import Flower
+
 def update_user(user_id, update_data):
     """
     update_data: dict of fields to update, e.g.
@@ -123,6 +125,7 @@ def get_user(user_id: str, with_chat: bool = True) -> dict:
             return {"success": False,"status":404, "error": "user not found", "status":404}
 
         data = user.to_json()
+        print("DATA : ", data)
         return {"success": True, "data": data}
 
     except Exception as e:
@@ -285,7 +288,18 @@ def get_matches_for_user(user_id: str) -> dict:
         # Filter by preferred gender
         if user_data.get('gender') != preferred_gender:
             continue
-        combined = {**match, "user_data": user_data}
+
+        has_mutual = Flower.objects(
+            sender_id=user_id,
+            receiver_id=uid,
+            status="accepted"
+        ).first() is not None
+        
+        combined = {
+            **match,
+            "user_data": user_data,
+            "mutual_match": has_mutual   # ✅ Added
+        }
         full_matches.append(combined)
 
     return {"success": True, "data": full_matches}
@@ -368,3 +382,23 @@ def get_described_persona(user_id: str) -> dict:
     except Exception as e:
         # Catch-all for other unexpected issues
         return {"success": False, "error": f"Unexpected error: {str(e)}"}
+    
+def mark_user_familiar(user_id):
+    try:
+        if not user_id:
+            return {"success": False, "error": "Unexpected error: userid needed"}
+        
+        user = User.objects(user_id=user_id).first()
+        if not user:
+            return {"success": False, "error": "no user found"}
+        
+        user.is_familiar = True
+        user.save()
+
+        return {"success": True, "data": user.to_json()}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+        

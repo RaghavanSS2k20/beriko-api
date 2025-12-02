@@ -115,7 +115,6 @@ def get_messages_for_conversation(conversation_id: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
-
 # ---------------------------
 # Send a message (create if convo doesn’t exist)
 # ---------------------------
@@ -237,5 +236,52 @@ def delete_conversation(conversation_id: str):
         return {"success": True, "data": f"Conversation {conversation_id} deleted successfully"}
     except DoesNotExist:
         return {"success": False, "error": "Conversation not found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    
+
+def get_conversation_between(user1_id: str, user2_id: str) -> dict:
+    """
+    Fetch the conversation between two users.
+    Returns:
+      - success + conversation data
+      - success + None if no conversation exists
+    """
+
+    try:
+        # ✅ Build participants key the same way as the model
+        participants_key = slugify(
+            "_".join(sorted([user1_id, user2_id])),
+            separator="_"
+        )
+
+        # ✅ Lookup conversation
+        convo = Conversation.objects(participants=participants_key).first()
+
+        if not convo:
+            return {"success": True, "data": None}  # No convo yet
+
+        # ✅ Format messages
+        messages = [{
+            "sender": msg.sender,
+            "content": msg.content,
+            "timestamp": (
+                msg.timestamp.isoformat() + "Z"
+                if isinstance(msg.timestamp, datetime)
+                else str(msg.timestamp)
+            )
+        } for msg in convo.messages]
+
+        return {
+            "success": True,
+            "data": {
+                "conversation_id": str(convo.id),
+                "participants": convo.participants,
+                "last_message": convo.last_message,
+                "updated_at": convo.updated_at.isoformat() + "Z",
+                "messages": messages
+            }
+        }
+
     except Exception as e:
         return {"success": False, "error": str(e)}

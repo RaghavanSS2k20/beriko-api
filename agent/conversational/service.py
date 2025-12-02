@@ -79,6 +79,7 @@ def generate_conversation_reply(content, user_id):
     print("LLM reply:", reply)
     
     # Async: update profile / engine
+    print("Active threads:", len(executor._threads))
     executor.submit(handle_engine_call, user_id, content, last_pairs_chats)
     
     return reply

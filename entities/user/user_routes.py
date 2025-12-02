@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask import request
-from .user_service import create_user, get_all_users, add_chat_to_user, get_user , get_chats, get_last_chats_text, get_matches_for_user, update_user,  get_user_profile,get_described_persona
+from .user_service import create_user, get_all_users, add_chat_to_user, get_user , get_chats, get_last_chats_text, get_matches_for_user, update_user,  get_user_profile,get_described_persona, mark_user_familiar
 from utils.response import send_response
 
 
@@ -157,6 +157,17 @@ def get_profile(user_id):
 
     else:
         return send_response(message=res["error"], status="error", code=500)
+    
+
+@user_bp.route("/<user_id>/markfamiliar", methods=['PATCH'])
+def mark_user_as_familiar(user_id):
+    res = mark_user_familiar(user_id)
+    if(res["success"]):
+         return send_response(data=res["data"], message="User marked as Familiar")
+
+    else:
+        return send_response(message=res["error"], status="error", code=500)
+
     
 
 @user_bp.route("/<user_id>/persona-description", methods=["GET"])
